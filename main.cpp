@@ -27,16 +27,15 @@ int triangle_count;
 GLuint vtx_buffer;
 GLuint tex_buffer;
 
-float move_factor = 0.0001;
-float rotation_factor = 0.0001;
-
-glm::vec3 model_position(0, -0.938991, 2.76398);
-glm::vec3 model_rotation(0, 0, 0);
+float move_factor = 0.0001f;
+float rotation_factor = 0.0001f;
+glm::vec3 model_position(0.0f, 0.0f, 1.0f);
+glm::vec3 model_rotation(0.0f, 0.0f, 0.00f);
 glm::mat4 MVP;
 
 // function callbacks
 void loadTransformationValues();
-void calculateView(glm::vec3);
+void calculateView(glm::vec3, glm::vec3);
 GLuint LoadShaders(const char *, const char *);
 bool loadFile(const char *, std::vector<glm::vec3> *);
 GLuint setup_vertices(const char *filepath, int *triangle_count);
@@ -65,7 +64,7 @@ int main(int argc, char *argv[]) {
     GLuint tex = loadBMP_custom(texture_file);
     GLint tex_id = glGetUniformLocation(program_id, "myTextureSampler");
 
-    calculateView(model_position);
+    calculateView(model_position, model_rotation);
     loadTransformationValues();
 
     bool paused = false;
@@ -163,6 +162,17 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         rotation_factor *= 10;
     }
 
+    if (key == GLFW_KEY_I && action == GLFW_PRESS) {
+        std::cout << "model position: " << model_position.x << " " << model_position.y << " " << model_position.z
+                  << std::endl;
+    }
+
+    if (key == GLFW_KEY_X && action == GLFW_PRESS) {
+        model_position = glm::vec3(0.0f, 0.0f, 0.0f);
+        model_rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        calculateView(model_position, model_rotation);
+    }
+
 
     if (glfwGetKey(glfw_window, GLFW_KEY_SPACE) == GLFW_PRESS) {
         if (paused) {
@@ -179,67 +189,66 @@ void handle_framewise_key_input() {
 
     if (glfwGetKey(glfw_window, GLFW_KEY_W) == GLFW_PRESS) {
         model_position.z -= move_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
     if (glfwGetKey(glfw_window, GLFW_KEY_S) == GLFW_PRESS) {
         model_position.z += move_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
     if (glfwGetKey(glfw_window, GLFW_KEY_A) == GLFW_PRESS) {
         model_position.x -= move_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
     if (glfwGetKey(glfw_window, GLFW_KEY_D) == GLFW_PRESS) {
         model_position.x += move_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
     if (glfwGetKey(glfw_window, GLFW_KEY_J) == GLFW_PRESS) {
         model_position.y -= move_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
     if (glfwGetKey(glfw_window, GLFW_KEY_K) == GLFW_PRESS) {
         model_position.y += move_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
-    if (glfwGetKey(glfw_window, GLFW_KEY_UP) == GLFW_PRESS) {
+    if (glfwGetKey(glfw_window, GLFW_KEY_H) == GLFW_PRESS) {
         model_rotation.x += rotation_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
-    if (glfwGetKey(glfw_window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    if (glfwGetKey(glfw_window, GLFW_KEY_L) == GLFW_PRESS) {
         model_rotation.x -= rotation_factor;
-        calculateView(model_position);
+        calculateView(model_position, model_rotation);
     }
 }
 
 void loadTransformationValues() {
     triangle_count = 0;
-    vtx_buffer = setup_vertices("mesh.txt", &triangle_count);
-    tex_buffer = setup_tex_coords("tex.txt");
+    vtx_buffer = setup_vertices("current.mesh", &triangle_count);
+    tex_buffer = setup_tex_coords("current.tex");
 }
 
-void calculateView(glm::vec3 camera_pos) {
+void calculateView(glm::vec3 model_pos, glm::vec3 model_rot) {
 
     // projection matrix
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 100.0f);
-//    glm::mat4 projection = glm::ortho();
 
     // camera matrix
     glm::mat4 view = glm::lookAt(
-            glm::vec3(0.0, 0.0, 5.0), // camera pos world space
-            glm::vec3(0.0, 0.0, 0), // camera lookat
+            glm::vec3(0.0, 0.0, 0.0), // camera pos world space
+            glm::vec3(0.0, 0.0, 100.0), // camera lookat
             glm::vec3(0, 1, 0)  // up-vec
     );
 
 
     // model
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, camera_pos);
-    model = glm::rotate(model, model_rotation.x, glm::vec3(1, 0, 0));
+    model = glm::translate(model, model_pos);
+    model = glm::translate(model, glm::vec3(-model_pos));
+    model = glm::rotate(model, model_rot.x, glm::vec3(1, 0, 0));
+    model = glm::translate(model, glm::vec3(model_pos));
 
-    std::cout << "current model_position:" << camera_pos.x << " " << camera_pos.y << " " << camera_pos.z << std::endl;
-    // glm::mat4 scale = glm::scale(model, glm::vec3(16.0f / 9.0f, 1.0f, 1.0f));
-
-    MVP = projection * view * model;// * scale;
+    // build mvp
+    MVP = projection * view * model;
 }
 
 /**
@@ -285,8 +294,6 @@ bool initializeGLContext(bool show_polys, bool with_vsync) {
     // input settings
     glfwSetInputMode(glfw_window, GLFW_STICKY_KEYS, GL_TRUE);
     glfwSetKeyCallback(glfw_window, key_callback);
-
-
 
     // init GL settings
     glEnable(GL_DEPTH_TEST); // enable depth test
